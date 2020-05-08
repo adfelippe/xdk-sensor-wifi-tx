@@ -87,8 +87,11 @@
 #include "queue.h"
 #include "BCDS_Assert.h"
 #include "XDK_LED.h"
+#include "XDK_Button.h"
 
 /* constant definitions ***************************************************** */
+static void Button2Callback(ButtonEvent_T buttonEvent);
+static bool button2Pressed = false;
 
 /* local variables ********************************************************** */
 static WLAN_Setup_T WLANSetupInfo =
@@ -104,6 +107,15 @@ static WLAN_Setup_T WLANSetupInfo =
                 .DnsAddr = WLAN_DNS_ADDR,
                 .Mask = WLAN_MASK,
         };/**< WLAN setup parameters */
+
+static Button_Setup_T ButtonSetup =
+        {
+                .CmdProcessorHandle = NULL,
+                .InternalButton1isEnabled = false,
+                .InternalButton2isEnabled = true,
+                //.InternalButton1Callback = Button1Callback,
+                .InternalButton2Callback = Button2Callback,
+        };/**< Button setup parameters */
 
 /**
  * @brief This is the BLE data receive callback function
@@ -197,6 +209,38 @@ static bool AppControllerBleTransmitPayload = false; /**< Boolean representing i
 /* inline functions ********************************************************* */
 
 /* local functions ********************************************************** */
+
+/**
+ * @brief Callback for Button 2.
+ *
+ * @param[in]    buttonEvent
+ * If it is BUTTON_EVENT_PRESSED, then Red and Orange LED's are turned ON
+ * If it is BUTTON_EVENT_RELEASED, then Yellow LED is turned ON
+ *
+ */
+static void Button2Callback(ButtonEvent_T buttonEvent)
+{
+    Retcode_T retcode = RETCODE_OK;
+
+    switch (buttonEvent)
+    {
+    case BUTTON_EVENT_PRESSED:
+    	button2Pressed = true;
+        break;
+
+    case BUTTON_EVENT_RELEASED:
+    	button2Pressed = false;
+        break;
+
+    default:
+        printf("Button2Callback : Unsolicited button event occurred for PB2 \r\n");
+        retcode = RETCODE(RETCODE_SEVERITY_ERROR, RETCODE_INVALID_PARAM);
+        break;
+    }
+
+    if (RETCODE_OK != retcode)
+        Retcode_RaiseError(retcode);
+}
 
 /**
  * @brief This will validate the WLAN network connectivity
@@ -399,13 +443,14 @@ static void AppControllerFire(void* pvParameters)
         AppControllerValidateWLANConnectivity();
 
         /* Read sensors from XDK API */
+        bool button = button2Pressed;
         retcode = Sensor_GetData(&sensorValue);
 
         /* Store values in the TX buffer */
         if (RETCODE_OK == retcode)
         {
-            sprintf((char*) accelDataUdpTxBuffer, "%ld, %ld, %ld, | %ld, %ld, %ld",
-            		(long int) sensorValue.Accel.X, (long int) sensorValue.Accel.Y, (long int) sensorValue.Accel.Z,
+            sprintf((char*) accelDataUdpTxBuffer, "%d | %ld, %ld, %ld, | %ld, %ld, %ld",
+            		button, (long int) sensorValue.Accel.X, (long int) sensorValue.Accel.Y, (long int) sensorValue.Accel.Z,
 					(long int) sensorValue.Gyro.X, (long int) sensorValue.Gyro.Y, (long int) sensorValue.Gyro.Z);
         }
 
@@ -442,6 +487,10 @@ static void AppControllerEnable(void * param1, uint32_t param2)
     if (RETCODE_OK == retcode)
     {
     	retcode = LED_Enable();
+    }
+    if (RETCODE_OK == retcode)
+    {
+    	retcode = Button_Enable();
     }
     if (RETCODE_OK == retcode)
     {
@@ -511,6 +560,11 @@ static void AppControllerSetup(void * param1, uint32_t param2)
     {
     	retcode = LED_Setup();
 	}
+    if (RETCODE_OK == retcode)
+    {
+        ButtonSetup.CmdProcessorHandle = AppCmdProcessor;
+        retcode = Button_Setup(&ButtonSetup);
+    }
     if (RETCODE_OK == retcode)
     {
         retcode = UDP_Setup(UDP_SETUP_USE_CC31XX_LAYER);

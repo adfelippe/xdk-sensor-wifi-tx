@@ -28,6 +28,7 @@ export XDK_CONNECTIVITY_UDP=1
 export XDK_CONNECTIVITY_LED=1
 
 export XDK_SENSOR_SENSOR=1
+export XDK_SENSOR_BUTTON=1
 #end of settings related to optimized build
 
 #List all the application source file under variable BCDS_XDK_APP_SOURCE_FILES in a similar pattern as below
