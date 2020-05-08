@@ -133,6 +133,7 @@ static Button_Setup_T ButtonSetup =
  * @note Do not perform any heavy processing within this function and return ASAP.
  */
 static void AppControllerBleDataRxCB(uint8_t *rxBuffer, uint8_t rxDataLength, void * param);
+static BaseType_t shockConditionMet(Sensor_Value_T  *sensor);
 
 static BLE_Setup_T BLESetupInfo =
         {
@@ -199,6 +200,7 @@ static CmdProcessor_T * AppCmdProcessor;/**< Handle to store the main Command pr
 
 static xTaskHandle AppControllerHandle = NULL;/**< OS thread handle for Application controller to be used by run-time blocking threads */
 static xTaskHandle UdpControllerHandle = NULL;
+static xTaskHandle CctOutControllerHandle = NULL;
 
 /* Accelerometer queue */
 QueueHandle_t accelQueue = NULL;
@@ -369,6 +371,19 @@ static void AppControllerBleDataRxCB(uint8_t *rxBuffer, uint8_t rxDataLength, vo
     }
 }
 
+static void ActivateCircuitOutput(void* pvParameters)
+{
+	BCDS_UNUSED(pvParameters);
+
+	while(1)
+	{
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+		GPIO_PinOutSet(gpioPortA, 1);
+		vTaskDelay(pdMS_TO_TICKS(SHOCK_ACTIVATION_DELAY));
+		GPIO_PinOutClear(gpioPortA, 1);
+	}
+}
+
 static void UdpController(void* pvParameters)
 {
     BCDS_UNUSED(pvParameters);
@@ -446,6 +461,12 @@ static void AppControllerFire(void* pvParameters)
         /* Read sensors from XDK API */
         bool button = button2Pressed;
         retcode = Sensor_GetData(&sensorValue);
+
+        /* Check condition to apply shock to external circuit */
+        if (shockConditionMet(&sensorValue) == pdTRUE)
+        {
+        	xTaskNotifyGive((xTaskHandle)CctOutControllerHandle);
+        }
 
         /* Store values in the TX buffer */
         if (RETCODE_OK == retcode)
@@ -527,6 +548,11 @@ static void AppControllerEnable(void * param1, uint32_t param2)
         {
         	retcode = RETCODE(RETCODE_SEVERITY_ERROR, RETCODE_OUT_OF_RESOURCES);
         }
+        if (pdPASS != xTaskCreate(ActivateCircuitOutput, (const char * const ) "CircuitOutput",
+                        		  TASK_STACK_SIZE_CCTOUT_CONTROLLER, NULL, TASK_PRIO_UDP_CONTROLLER, &CctOutControllerHandle))
+        {
+          	retcode = RETCODE(RETCODE_SEVERITY_ERROR, RETCODE_OUT_OF_RESOURCES);
+        }
     }
     if (RETCODE_OK != retcode)
     {
@@ -555,6 +581,10 @@ static void AppControllerSetup(void * param1, uint32_t param2)
 {
     BCDS_UNUSED(param1);
     BCDS_UNUSED(param2);
+
+    // Setup PA1 as the output to activate the circuit to trigger the shock
+    GPIO_DriveModeSet(gpioPortA, gpioDriveModeStandard);
+    GPIO_PinModeSet(gpioPortA, 1, gpioModePushPullDrive, 0);
 
     Retcode_T retcode = WLAN_Setup(&WLANSetupInfo);
     if (RETCODE_OK == retcode)
@@ -616,6 +646,12 @@ void AppController_Init(void * cmdProcessorHandle, uint32_t param2)
         assert(0); /* To provide LED indication for the user */
     }
 }
+
+static BaseType_t shockConditionMet(Sensor_Value_T  *sensor)
+{
+	return pdFALSE;
+}
+
 
 /**@} */
 /** ************************************************************************* */

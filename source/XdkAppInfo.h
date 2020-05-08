@@ -59,6 +59,7 @@
 /**< Application controller task stack size */
 #define TASK_STACK_SIZE_APP_CONTROLLER              (UINT32_C(1200))
 #define TASK_STACK_SIZE_UDP_CONTROLLER              (UINT32_C(800))
+#define TASK_STACK_SIZE_CCTOUT_CONTROLLER			(UINT32_C(300))
 
 /**
  * @brief BCDS_APP_MODULE_ID for Application C module of XDK
