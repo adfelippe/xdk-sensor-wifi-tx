@@ -88,6 +88,7 @@
 #include "BCDS_Assert.h"
 #include "XDK_LED.h"
 #include "XDK_Button.h"
+#include "em_gpio.h"
 
 /* constant definitions ***************************************************** */
 static void Button2Callback(ButtonEvent_T buttonEvent);

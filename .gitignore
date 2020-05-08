@@ -13,6 +13,8 @@ debug/objects/source/*.o
 debug/objects/source/*.d
 debug/objects/source/Connectivity/*.o
 debug/objects/source/Connectivity/*.d
+debug/objects/source/Connectivity/BLE/*.o
+debug/objects/source/Connectivity/BLE/*.d
 debug/objects/source/Private/ServalStack/src/TLS_MbedTLS/*.o
 debug/objects/source/Private/ServalStack/src/TLS_MbedTLS/*.d
 debug/objects/source/Sensor/*.o
